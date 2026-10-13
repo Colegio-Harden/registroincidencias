@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Incidencias Harden</title>
+<meta name="theme-color" content="#1B234F">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<style>
+  :root{
+    --navy:#1B234F; --navy-2:#2A3570; --red:#C11F2E;
+    --bg:#F3F4F8; --card:#FFFFFF; --ink:#1C1F2A; --muted:#6B7085; --line:#D9DCE6;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--ink);
+       font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+  header{background:var(--navy);color:#fff;padding:14px 16px calc(14px);
+         padding-top:calc(14px + env(safe-area-inset-top));
+         display:flex;align-items:center;gap:12px;border-bottom:4px solid var(--red)}
+  header img{height:46px}
+  header h1{font-size:17px;margin:0;letter-spacing:.3px}
+  header p{margin:0;font-size:13px;opacity:.8}
+  header .spacer{flex:1}
+  header button{background:transparent;border:1px solid rgba(255,255,255,.4);color:#fff;
+                border-radius:8px;padding:6px 10px;font-size:13px}
+  main{max-width:560px;margin:0 auto;padding:16px}
+  .card{background:var(--card);border-radius:14px;padding:18px;box-shadow:0 1px 3px rgba(20,25,60,.08)}
+  .hidden{display:none!important}
+  h2{font-size:18px;margin:0 0 14px;color:var(--navy)}
+  label{display:block;font-size:13px;font-weight:600;color:var(--navy);margin:14px 0 6px}
+  input,select,textarea{width:100%;font:inherit;color:var(--ink);background:#fff;
+         border:1px solid var(--line);border-radius:10px;padding:11px 12px;appearance:none;-webkit-appearance:none}
+  select{background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+         background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:34px}
+  textarea{min-height:120px;resize:vertical}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--navy-2);box-shadow:0 0 0 3px rgba(42,53,112,.15)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .row label{margin-top:14px}
+  .btn{display:block;width:100%;margin-top:22px;border:0;border-radius:12px;padding:14px;
+       font-family:inherit;font-size:16px;font-weight:600;line-height:1;color:#fff;background:var(--red);cursor:pointer}
+  .btn.secondary{background:var(--navy)}
+  .btn:disabled{opacity:.6}
+  .msg{margin-top:14px;padding:12px;border-radius:10px;font-size:14px}
+  .msg.err{background:#FDECEE;color:#8E1520}
+  .pin-wrap{text-align:center}
+  .pin-wrap img{height:90px;margin:6px 0 10px}
+  #pin{text-align:center;font-size:24px;letter-spacing:10px}
+  .ok{text-align:center}
+  .ok .check{width:58px;height:58px;border-radius:50%;background:#E5F4EA;color:#1E7A3C;
+             display:grid;place-items:center;font-size:30px;margin:4px auto 10px}
+  .folio{font-size:22px;font-weight:700;color:var(--navy);margin:4px 0 2px}
+  a.doc{display:inline-block;margin-top:10px;color:var(--navy-2);font-weight:600}
+  .lbl-row{display:flex;align-items:flex-end;justify-content:space-between;gap:8px}
+  .mic{display:none;align-items:center;gap:6px;margin:14px 0 6px;border:1px solid var(--line);
+       background:#fff;color:var(--navy);border-radius:999px;padding:5px 12px;font:600 13px/1.2 inherit;
+       font-family:inherit;cursor:pointer}
+  .speech-ok .mic{display:inline-flex}
+  .mic .dot{width:9px;height:9px;border-radius:50%;background:var(--red)}
+  .mic.on{background:var(--red);color:#fff;border-color:var(--red)}
+  .mic.on .dot{background:#fff;animation:pulse 1s infinite}
+  @keyframes pulse{50%{opacity:.25}}
+  .interim{min-height:0;font-size:14px;color:var(--muted);font-style:italic;margin-top:6px}
+  .hint{font-size:12px;color:var(--muted);margin-top:6px}
+</style>
+</head>
+<body>
+<header>
+  <img src="logo.png" alt="Colegio Harden">
+  <div><h1>Registro de incidencias</h1><p>Dirección Técnica</p></div>
+  <div class="spacer"></div>
+  <button id="logout" class="hidden" type="button">Salir</button>
+</header>
+
+<main>
+  <!-- Pantalla 1: PIN -->
+  <section id="v-pin" class="card pin-wrap hidden">
+    <img src="logo.png" alt="">
+    <h2>Ingresa el PIN</h2>
+    <form id="f-pin" autocomplete="off">
+      <input id="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" required>
+      <button class="btn secondary" type="submit">Entrar</button>
+      <div id="pin-msg" class="msg err hidden"></div>
+    </form>
+  </section>
+
+  <!-- Pantalla 2: Formulario -->
+  <section id="v-form" class="card hidden">
+    <h2>Nuevo reporte</h2>
+    <form id="f-inc" novalidate>
+      <div class="row">
+        <div><label for="fecha">Fecha</label><input id="fecha" type="date" required></div>
+        <div><label for="hora">Hora</label><input id="hora" type="time" required></div>
+      </div>
+
+      <label for="quien_atendio">Quién atendió</label>
+      <select id="quien_atendio" required>
+        <option value="">Selecciona…</option>
+        <option>Lic. Julieta Guzmán Lara</option>
+        <option>Lic. Alejandra Santos Trujillo</option>
+      </select>
+
+      <label for="nombre_alumno">Nombre del alumno</label>
+      <input id="nombre_alumno" type="text" autocapitalize="words" required>
+
+      <label for="grado">Grado</label>
+      <select id="grado" required>
+        <option value="">Selecciona…</option>
+        <option>Pre-First</option><option>1°</option><option>2°</option><option>3°</option>
+        <option>4°</option><option>5°A</option><option>5°B</option><option>6°</option>
+      </select>
+
+      <label for="tipo">Tipo de incidencia</label>
+      <select id="tipo" required>
+        <option value="">Selecciona…</option>
+        <option>Conductual</option><option>Disciplina</option><option>Médica</option>
+        <option>Académica</option><option>Cita</option><option>Otro</option>
+      </select>
+      <div id="otro-wrap" class="hidden">
+        <label for="tipo_otro">Especifica</label>
+        <input id="tipo_otro" type="text">
+      </div>
+
+      <div class="lbl-row">
+        <label for="descripcion">Descripción</label>
+        <button type="button" class="mic" data-target="descripcion"><span class="dot"></span><span class="t">Dictar</span></button>
+      </div>
+      <textarea id="descripcion" required></textarea>
+      <div class="interim" id="interim-descripcion"></div>
+
+      <div class="lbl-row">
+        <label for="como_se_procedio">Cómo se procedió</label>
+        <button type="button" class="mic" data-target="como_se_procedio"><span class="dot"></span><span class="t">Dictar</span></button>
+      </div>
+      <textarea id="como_se_procedio" required></textarea>
+      <div class="interim" id="interim-como_se_procedio"></div>
+      <p class="hint" id="speech-hint"></p>
+
+      <button id="send" class="btn" type="submit">Enviar reporte</button>
+      <div id="form-msg" class="msg err hidden"></div>
+    </form>
+  </section>
+
+  <!-- Pantalla 3: Confirmación -->
+  <section id="v-ok" class="card ok hidden">
+    <div class="check">✓</div>
+    <p>Reporte guardado</p>
+    <div class="folio" id="ok-folio"></div>
+    <a class="doc" id="ok-link" href="#" target="_blank" rel="noopener">Abrir documento</a>
+    <button id="again" class="btn secondary" type="button">Nuevo reporte</button>
+  </section>
+</main>
+
+<script>
+// URL de la implementación de Apps Script (se llena en el siguiente paso)
+const API_URL = "PEGAR_AQUI_URL_DE_APPS_SCRIPT";
+const PIN_KEY = "incidencias_pin";
+
+const $ = id => document.getElementById(id);
+const views = ["v-pin","v-form","v-ok"];
+function show(v){
+  views.forEach(x => $(x).classList.toggle("hidden", x !== v));
+  $("logout").classList.toggle("hidden", v === "v-pin");
+  window.scrollTo(0,0);
+}
+function getPin(){ try{ return localStorage.getItem(PIN_KEY); }catch(e){ return null; } }
+function setPin(p){ try{ p ? localStorage.setItem(PIN_KEY,p) : localStorage.removeItem(PIN_KEY); }catch(e){} }
+function msg(el, text){ el.textContent = text || ""; el.classList.toggle("hidden", !text); }
+
+async function api(payload){
+  const r = await fetch(API_URL, {
+    method:"POST",
+    headers:{"Content-Type":"text/plain;charset=utf-8"}, // evita preflight CORS con Apps Script
+    body: JSON.stringify(payload)
+  });
+  return r.json();
+}
+
+function pad(n){ return String(n).padStart(2,"0"); }
+function stampNow(){
+  const d = new Date();
+  $("fecha").value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  $("hora").value  = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function resetForm(){
+  if(typeof stopDictation === "function") stopDictation();
+  $("f-inc").reset();
+  $("otro-wrap").classList.add("hidden");
+  msg($("form-msg"));
+  stampNow();
+}
+
+// --- PIN ---
+$("f-pin").addEventListener("submit", async e => {
+  e.preventDefault();
+  const pin = $("pin").value.trim();
+  if(!pin) return;
+  const btn = e.submitter; btn.disabled = true; msg($("pin-msg"));
+  try{
+    const res = await api({action:"verify", pin});
+    if(res.ok){ setPin(pin); $("pin").value=""; resetForm(); show("v-form"); }
+    else if(res.error === "BLOQUEADO") msg($("pin-msg"), "Demasiados intentos fallidos. Espera 10 minutos e intenta de nuevo.");
+    else msg($("pin-msg"), "PIN incorrecto.");
+  }catch(err){ msg($("pin-msg"), "No se pudo conectar. Revisa tu internet e intenta de nuevo."); }
+  btn.disabled = false;
+});
+
+$("logout").addEventListener("click", () => { stopDictation(); setPin(null); show("v-pin"); });
+
+// --- Tipo "Otro" ---
+$("tipo").addEventListener("change", () => {
+  const otro = $("tipo").value === "Otro";
+  $("otro-wrap").classList.toggle("hidden", !otro);
+  $("tipo_otro").required = otro;
+  if(otro) $("tipo_otro").focus();
+});
+
+// --- Envío ---
+$("f-inc").addEventListener("submit", async e => {
+  e.preventDefault();
+  stopDictation();
+  msg($("form-msg"));
+  const ids = ["fecha","hora","quien_atendio","nombre_alumno","grado","tipo","descripcion","como_se_procedio"];
+  if($("tipo").value === "Otro") ids.push("tipo_otro");
+  const falta = ids.find(id => !$(id).value.trim());
+  if(falta){ $(falta).focus(); msg($("form-msg"), "Completa todos los campos."); return; }
+
+  const tipo = $("tipo").value === "Otro" ? `Otro: ${$("tipo_otro").value.trim()}` : $("tipo").value;
+  const data = {
+    fecha: $("fecha").value,
+    hora: $("hora").value,
+    quien_atendio: $("quien_atendio").value,
+    nombre_alumno: $("nombre_alumno").value.trim(),
+    grado: $("grado").value,
+    tipo_incidencia: tipo,
+    descripcion: $("descripcion").value.trim(),
+    como_se_procedio: $("como_se_procedio").value.trim()
+  };
+
+  const btn = $("send"); btn.disabled = true; btn.textContent = "Enviando…";
+  try{
+    const res = await api({action:"submit", pin:getPin(), data});
+    if(res.ok){
+      $("ok-folio").textContent = res.folio;
+      $("ok-link").href = res.url;
+      show("v-ok");
+    } else if(res.error === "BLOQUEADO"){
+      msg($("form-msg"), "Acceso bloqueado temporalmente por intentos fallidos de PIN. Espera 10 minutos; no se borró lo que escribiste.");
+    } else if(res.error === "PIN"){
+      setPin(null); show("v-pin"); msg($("pin-msg"), "El PIN cambió. Ingrésalo de nuevo.");
+    } else {
+      msg($("form-msg"), "Error al guardar: " + (res.error || "desconocido") + ". No se borró lo que escribiste.");
+    }
+  }catch(err){
+    msg($("form-msg"), "No se pudo enviar. Revisa tu internet e intenta de nuevo; no se borró lo que escribiste.");
+  }
+  btn.disabled = false; btn.textContent = "Enviar reporte";
+});
+
+$("again").addEventListener("click", () => { resetForm(); show("v-form"); });
+
+// --- Dictado por voz (Web Speech API: Chrome y Edge) ---
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null, activeBtn = null, keepListening = false;
+
+function setMicUI(btn, on){
+  btn.classList.toggle("on", on);
+  btn.querySelector(".t").textContent = on ? "Detener" : "Dictar";
+}
+function stopDictation(){
+  keepListening = false;
+  if(rec){ try{ rec.stop(); }catch(e){} }
+  if(activeBtn){
+    setMicUI(activeBtn, false);
+    $("interim-" + activeBtn.dataset.target).textContent = "";
+  }
+  rec = null; activeBtn = null;
+}
+function appendText(ta, chunk){
+  chunk = chunk.trim();
+  if(!chunk) return;
+  const cur = ta.value;
+  if(!cur.trim() || /[.!?]\s*$/.test(cur)) chunk = chunk.charAt(0).toUpperCase() + chunk.slice(1);
+  ta.value = cur + (cur && !/\s$/.test(cur) ? " " : "") + chunk;
+  ta.scrollTop = ta.scrollHeight;
+}
+function startDictation(btn){
+  stopDictation();
+  const ta = $(btn.dataset.target), interim = $("interim-" + btn.dataset.target);
+  rec = new SR();
+  rec.lang = "es-MX";
+  rec.continuous = true;
+  rec.interimResults = true;
+  activeBtn = btn; keepListening = true;
+  setMicUI(btn, true);
+  msg($("form-msg"));
+
+  rec.onresult = e => {
+    let tmp = "";
+    for(let i = e.resultIndex; i < e.results.length; i++){
+      const r = e.results[i];
+      if(r.isFinal) appendText(ta, r[0].transcript);
+      else tmp += r[0].transcript;
+    }
+    interim.textContent = tmp;
+  };
+  rec.onerror = e => {
+    if(e.error === "not-allowed" || e.error === "service-not-allowed"){
+      stopDictation();
+      msg($("form-msg"), "El navegador no tiene permiso para usar el micrófono. Permítelo en el ícono del candado junto a la dirección.");
+    } else if(e.error === "audio-capture"){
+      stopDictation();
+      msg($("form-msg"), "No se detectó ningún micrófono en esta computadora.");
+    } else if(e.error === "network"){
+      stopDictation();
+      msg($("form-msg"), "El dictado necesita internet. Revisa la conexión.");
+    }
+    // "no-speech" y "aborted": se ignoran; onend reinicia si sigue activo
+  };
+  // Chrome corta la escucha tras un silencio; si nadie presionó "Detener", se reanuda sola
+  rec.onend = () => {
+    if(keepListening && rec){ try{ rec.start(); }catch(e){ stopDictation(); } }
+  };
+  try{ rec.start(); }catch(e){ stopDictation(); }
+}
+
+if(SR){
+  document.body.classList.add("speech-ok");
+  document.querySelectorAll(".mic").forEach(btn => btn.addEventListener("click", () => {
+    btn === activeBtn ? stopDictation() : startDictation(btn);
+  }));
+} else {
+  $("speech-hint").textContent = "Para dictar, abre esta página en Chrome o Edge. En Windows también puedes usar Windows + H.";
+}
+
+// --- Inicio ---
+if(getPin()){ resetForm(); show("v-form"); } else show("v-pin");
+
+if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js").catch(()=>{}); }
+</script>
+</body>
+</html>
